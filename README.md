@@ -1,21 +1,31 @@
 # LiveCaptioning
+import json
+import queue
+import sounddevice as sd
+from vosk import Model, KaldiRecognizer
+import sys
 
-import speech_recognition as sr
+# Ensure you have the model folder named "model" in the current directory
+model = Model("model")
+recognizer = KaldiRecognizer(model, 16000)
 
-recognizer = sr.Recognizer()
+q = queue.Queue()
 
-with sr.Microphone() as source:
-    print("Live Captioning Started... Speak Now")
-    recognizer.adjust_for_ambient_noise(source)
+def callback(indata, frames, time, status):
+    """This is called (from a separate thread) for each audio block."""
+    if status:
+        print(status, file=sys.stderr)
+    q.put(bytes(indata))
 
-    while True:
-        try:
-            audio = recognizer.listen(source, phrase_time_limit=3)
-            text = recognizer.recognize_google(audio)
-            print("Caption:", text)
+print("Listening continuously... (Press Ctrl+C to stop)")
 
-        except sr.UnknownValueError:
-            print("...")
-        except KeyboardInterrupt:
-            print("Captioning Stopped")
-            break
+try:
+    with sd.RawInputStream(samplerate=16000, blocksize=8000, dtype='int16',
+                           channels=1, callback=callback):
+        while True:
+            data = q.get()
+            
+           
+                    
+except KeyboardInterrupt:
+    print("\nStopping...")
